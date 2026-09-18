@@ -4,8 +4,8 @@
 
 ## 核心思路
 
-1. **GitHub 仓库 = 唯一真源**：所有 skill 源码都集中在本仓库的 `skills/` 目录。
-2. **本地 clone 一份**：每台设备 clone 一次仓库到固定路径。
+1. **GitHub 仓库 = 唯一真源**：两个仓库共同存放 skill —— `amazon-skills`（多 skill，源码在 `skills/` 目录）和 `amazon-listing-doctor`（单 skill，源码在仓库根目录）。
+2. **本地 clone 各一份**：每台设备把两个仓库 clone 到 `$HOME` 下的固定路径。
 3. **软链接（Junction）挂载**：在每个软件的 skill 目录里，用 Junction 指向仓库里对应的 skill 文件夹。
 
 这样改一处、全软件即时生效；`git pull` 一次、全设备同步。Junction 在 Windows 上无需管理员权限（Symbolic Link 才需要）。
@@ -17,12 +17,13 @@
 ```powershell
 cd $env:USERPROFILE
 git clone https://github.com/<你的用户名>/amazon-skills.git amazon-skills
+git clone https://github.com/<你的用户名>/amazon-listing-doctor.git amazon-listing-doctor
 powershell -ExecutionPolicy Bypass -File .\amazon-skills\setup-skills.ps1 -IncludeTrae
 ```
 
 `setup-skills.ps1` 会自动：
 
-- 遍历 `skills\` 下的所有 skill；
+- 遍历 `amazon-skills\skills\` 下的所有 skill，并把 `amazon-listing-doctor` 仓库本身作为一个 skill；
 - 给 Codex / Claude / Cursor 三个软件的 skill 目录建 Junction；
 - 加 `-IncludeTrae` 后，额外扫描 TRAE 的 `work-mode-projects\*\.trae\skills`，给每个项目都链接。
 
@@ -49,3 +50,4 @@ powershell -ExecutionPolicy Bypass -File .\setup-skills.ps1 -IncludeTrae
 - **TRAE 是「项目级」技能**：每个项目各自的 `.trae\skills` 都要链接，所以新电脑 / 新项目记得带上 `-IncludeTrae` 重跑一次。
 - **PowerShell 5 执行 `.ps1`**：默认执行策略会拦截，需加 `-ExecutionPolicy Bypass`；或一次性执行 `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`，之后就能直接 `.\setup-skills.ps1`。
 - **删除 skill 的顺序**：先在各软件目录删除对应 Junction，再从仓库删除源目录，最后提交推送，避免残留悬空链接。
+- **两个仓库各自同步**：`amazon-skills`（zach 系列，多 skill）与 `amazon-listing-doctor`（单 skill）是两个独立 git 仓库，哪个仓库的 skill 变了就在那个目录里 `git pull` / `git push`，之后统一跑一次 `setup-skills.ps1 -IncludeTrae` 即可。
