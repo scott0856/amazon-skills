@@ -1,19 +1,53 @@
 # setup-skills.ps1
-# Link every skill under <repo>\skills into each AI tool's skills dir via Junction.
+# Link all skills from configured repos into each AI tool's skills dir via Junction.
+# Supports two repo layouts:
+#   multi  : each subfolder under <repo>\skills\ is one skill
+#   single : the repo root itself is one skill (SKILL.md at root)
 # Idempotent: safe to re-run after `git pull` to link newly added skills.
 
 param(
-  [string]$SkillsSource = (Join-Path $PSScriptRoot 'skills'),
   [switch]$IncludeTrae,
   [string]$TraeProjectsRoot
 )
 
 $ErrorActionPreference = 'Stop'
 
-if (-not (Test-Path -LiteralPath $SkillsSource)) {
-  Write-Error "Skills source not found: $SkillsSource"
-  exit 1
+# ===== Repos to sync (paths are relative to $HOME) =====
+$repos = @(
+  @{ Path = (Join-Path $HOME 'amazon-skills');         Type = 'multi'  },
+  @{ Path = (Join-Path $HOME 'amazon-listing-doctor'); Type = 'single' }
+)
+
+# Resolve skill entries: list of @{ Name; Path }
+$skills = @()
+foreach ($r in $repos) {
+  if (-not (Test-Path -LiteralPath $r.Path)) {
+    Write-Warning "Repo not found, skipped: $($r.Path)"
+    continue
+  }
+  if ($r.Type -eq 'multi') {
+    $sd = Join-Path $r.Path 'skills'
+    if (Test-Path -LiteralPath $sd) {
+      Get-ChildItem -LiteralPath $sd -Directory | Where-Object { $_.Name -notlike '.*' } | ForEach-Object {
+        $skills += @{ Name = $_.Name; Path = $_.FullName }
+      }
+    } else {
+      Write-Warning "No skills dir under repo, skipped: $($r.Path)"
+    }
+  } else {
+    if (Test-Path -LiteralPath (Join-Path $r.Path 'SKILL.md')) {
+      $skills += @{ Name = (Split-Path $r.Path -Leaf); Path = $r.Path }
+    } else {
+      Write-Warning "No SKILL.md at repo root, skipped: $($r.Path)"
+    }
+  }
 }
+
+if (-not $skills) {
+  Write-Host "No skills found."
+  exit 0
+}
+Write-Host "Found $($skills.Count) skill(s): $($skills.Name -join ', ')"
 
 function Link-Skills {
   param([string]$DestRoot, $Skills, [string]$Label)
@@ -32,17 +66,10 @@ function Link-Skills {
       }
       continue
     }
-    New-Item -ItemType Junction -Path $dest -Target $s.FullName | Out-Null
+    New-Item -ItemType Junction -Path $dest -Target $s.Path | Out-Null
     Write-Host "  [link] $($s.Name)"
   }
 }
-
-$skills = Get-ChildItem -LiteralPath $SkillsSource -Directory | Where-Object { $_.Name -notlike '.*' } | Sort-Object Name
-if (-not $skills) {
-  Write-Host "No skills found under $SkillsSource"
-  exit 0
-}
-Write-Host "Found $($skills.Count) skill(s): $($skills.Name -join ', ')"
 
 $tools = @(
   @{ Label = 'Codex';  Dir = Join-Path $HOME '.codex\skills' },
