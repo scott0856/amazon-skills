@@ -56,6 +56,14 @@ zach-sif-cvr-threshold-analyzer
 
 ---
 
+## 多设备、多软件同步（仓库 owner 专用）
+
+如果你想在自己多台设备、多个 AI 软件（Claude Code / Codex / Cursor / TRAE）之间保持这份 skill 集合一致，用 [setup-skills.ps1](./setup-skills.ps1) 一键软链接，详见：
+
+[docs/multi-device-setup.md](./docs/multi-device-setup.md)
+
+---
+
 ## 当前 Skills
 
 | Skill | 解决什么问题 | 数据源 | 状态 |
